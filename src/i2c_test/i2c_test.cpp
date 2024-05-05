@@ -11,7 +11,7 @@ static DaisySeed             hw;
 //Oscillator            lfo;
 
 //MPR121 Register Addresses
-const uint16_t touch_sensor_addr = 0x5A;
+const uint16_t touch_sensor_addr = 0x5A << 1; // address is 7 bit, so need to shift left 1
 const uint16_t touch_reg_lo = 0x00;
 const uint16_t touch_reg_hi = 0x01;
 const uint16_t autocfg_reg_0 = 0x7B;
@@ -29,11 +29,13 @@ const uint16_t electrode_cfg_reg = 0x5E;
 //0x7B - Auto Config Control Register 0
 //ACE: Auto Config Enable
 //ARE: Auto RE-config Enable
+//BVA: Set same as Electrode Config CL bits
 //RETRY: Number of retries, 00 = 0, 01 = 2, 10 = 4, 11 = 8
 //  data = (1 << auto_cfg_ace_bit | 1 << auto_cfg_are_bit |
-//          0b11 << auto_cfg_retry_bit);
+//          0b00 << auto_config_bva_bit | 0b11 << auto_cfg_retry_bit);
 const uint8_t auto_cfg_ace_bit = 0x00;
 const uint8_t auto_cfg_are_bit = 0x01;
+const uint8_t auto_cfg_bva_bit = 0x02;
 const uint8_t auto_cfg_retry_bit = 0x04;
 //0x7C - Auto Config Control Register 0
 //ACFIE: Auto Config Fail Interrupt Enable
@@ -102,21 +104,39 @@ int main(void)
 
     //setup autocfg reg 0
     i2cdata = (1 << auto_cfg_ace_bit | 1 << auto_cfg_are_bit |
-               0b11 << auto_cfg_retry_bit);
+               0b10 << auto_cfg_bva_bit | 0b11 << auto_cfg_retry_bit);
+    hw.PrintLine("Setting Autoconfig 0 Register: 0x%X", i2cdata);
     i2c.WriteDataAtAddress(touch_sensor_addr, autocfg_reg_0, 1, &i2cdata, 1, -1);
+    i2cdata = 0;
+    i2c.ReadDataAtAddress(touch_sensor_addr, autocfg_reg_0, 1, &i2cdata, 1, -1);
+    hw.PrintLine("Read from Autoconfig 0 Register: 0x%X", i2cdata);
+    i2c.ReadDataAtAddress(touch_sensor_addr, autocfg_reg_0, 1, &i2cdata, 1, -1);
+    hw.PrintLine("Read from Autoconfig 0 Register: 0x%X", i2cdata);
 
     //setup autocfg reg 1
     i2cdata =  (0b00 << auto_cfg_oorie_bit |
                 0b00 << auto_cfg_arfie_bit |
                 0b00 << auto_cfg_acfie_bit |
                 0b00 << auto_cfg_scts_bit);
-    i2c.WriteDataAtAddress(touch_sensor_addr, autocfg_reg_1, 1, &i2cdata, 1, -1);
+    hw.PrintLine("Setting Autoconfig 1 Register: 0x%X", i2cdata);
+    i2c.WriteDataAtAddress(touch_sensor_addr, autocfg_reg_1, 1, &i2cdata, 1, 500);
+    i2cdata = 0;
+    i2c.ReadDataAtAddress(touch_sensor_addr, autocfg_reg_1, 1, &i2cdata, 1, 500);
+    hw.PrintLine("Read from Autoconfig 1 Register: 0x%X", i2cdata);
+    i2c.ReadDataAtAddress(touch_sensor_addr, autocfg_reg_1, 1, &i2cdata, 1, 500);
+    hw.PrintLine("Read from Autoconfig 1 Register: 0x%X", i2cdata);
 
     //setup electrode register
-    i2cdata =  (0b00 << electrode_cl_bit |
+    i2cdata =  (0b10 << electrode_cl_bit |
                 0b00 << electrode_eleprox_en_bit |
                 0b1111 << electrode_ele_en_bit);
-    i2c.WriteDataAtAddress(touch_sensor_addr, electrode_cfg_reg, 1, &i2cdata, 1, -1);
+    hw.PrintLine("Setting Electrode Enable Register: 0x%X", i2cdata);
+    i2c.WriteDataAtAddress(touch_sensor_addr, electrode_cfg_reg, 1, &i2cdata, 1, 500);
+    i2cdata = 0;
+    i2c.ReadDataAtAddress(touch_sensor_addr, autocfg_reg_1, 1, &i2cdata, 1, 500);
+    hw.PrintLine("Read from Electrode Enable Register: 0x%X", i2cdata);
+    i2c.ReadDataAtAddress(touch_sensor_addr, autocfg_reg_1, 1, &i2cdata, 1, 500);
+    hw.PrintLine("Read from Electrode Enable Register: 0x%X", i2cdata);
 /*
     //set up ADC on pin D15 and D16 for our potentiometer
     const int adcChannels = 2;
@@ -136,14 +156,16 @@ int main(void)
 
     hw.StartAudio(AudioCallback);
 */
-    while(1) 
-    {
+    while(1);
+   /* {
         hw.PrintLine("At top of While loop");
         System::Delay(125);
         i2cdata = 0;
-        i2c.ReceiveBlocking(touch_sensor_addr, &i2cdata, 1, -1); 
+    	hw.PrintLine("Read from I2C Result: %d", i2c.ReadDataAtAddress(touch_sensor_addr, touch_reg_lo, 1, &i2cdata, 1, 500));
         hw.SetLed(i2cdata > 0);
         hw.PrintLine("I2C Data: %x", i2cdata);
-    }
+	i2c.ReadDataAtAddress(touch_sensor_addr, electrode_cfg_reg, 1, &i2cdata, 1, 500);
+    	hw.PrintLine("Read from Electrode Enable Register: 0x%X", i2cdata);
+    } */
 }
 
