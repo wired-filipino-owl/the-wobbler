@@ -2,6 +2,7 @@
 #include "daisysp.h"
 #include <src/per/i2c.h>
 #include <cstdio>
+#include "mpr121.h"
 
 using namespace daisy;
 using namespace daisysp;
@@ -10,61 +11,7 @@ static DaisySeed             hw;
 //VariableSawOscillator varisaw;
 //Oscillator            lfo;
 
-//MPR121 Register Addresses
-const uint16_t touch_sensor_addr = 0x5A << 1; // address is 7 bit, so need to shift left 1
-const uint16_t touch_reg_lo = 0x00;
-const uint16_t touch_reg_hi = 0x01;
-const uint16_t autocfg_reg_0 = 0x7B;
-const uint16_t autocfg_reg_1 = 0x7C;
-//set this whole register to 0 to disable GPIO function
-//for inputs 4-11
-const uint16_t gpio_ena_reg = 0x77;
-//IMPORTANT - THIS REGISTER IS THE IMPORTANT ONE!!!
-//Electrode Config Register
-//Setting this register will determine if the MPR121 is in
-// RUN or STOP modes, as well as enable/disable touch channel inputs.
-const uint16_t electrode_cfg_reg = 0x5E;
-
-//config register shiftmasks
-//0x7B - Auto Config Control Register 0
-//ACE: Auto Config Enable
-//ARE: Auto RE-config Enable
-//BVA: Set same as Electrode Config CL bits
-//RETRY: Number of retries, 00 = 0, 01 = 2, 10 = 4, 11 = 8
-//  data = (1 << auto_cfg_ace_bit | 1 << auto_cfg_are_bit |
-//          0b00 << auto_config_bva_bit | 0b11 << auto_cfg_retry_bit);
-const uint8_t auto_cfg_ace_bit = 0x00;
-const uint8_t auto_cfg_are_bit = 0x01;
-const uint8_t auto_cfg_bva_bit = 0x02;
-const uint8_t auto_cfg_retry_bit = 0x04;
-//0x7C - Auto Config Control Register 0
-//ACFIE: Auto Config Fail Interrupt Enable
-//ARFIE: Auto Reconfig Fail Interrupt Enable
-//OORIE: Out-of-range Interrupt Enable
-//  data = (0b00 << auto_cfg_oorie_bit |
-//          0b00 << auto_cfg_arfie_bit |
-//          0b00 << auto_cfg_acfie_bit |
-//          0b00 << auto_cfg_scts_bit);
-const uint8_t auto_cfg_acfie_bit = 0x00;
-const uint8_t auto_cfg_arfie_bit = 0x01;
-const uint8_t auto_cfg_oorie_bit = 0x02;
-const uint8_t auto_cfg_scts_bit = 0x07;
-//0x5E - Electrode Configuration Register
-//CL: Calibration Lock - 00 is default
-//ELEPROX_EN: Proximity detection - 00 is default (disabled)
-//ELE_EN: Electrode enable
-//0000 - Off, MPR121 is in STOP mode (low power state)
-//0x1 - 0xB -- Enable inputs in order
-//To enable all inputs, only the top two bits are needed, bottom
-//two are don't cares/X
-//  data = (0b00 << electrode_cl_bit |
-//          0b00 << electrode_eleprox_en_bit |
-//          0b1111 << electrode_ele_en_bit);
-const uint8_t electrode_cl_bit = 0x06;
-const uint8_t electrode_eleprox_en_bit = 0x04;
-const uint8_t electrode_ele_en_bit = 0x00;
-
-uint8_t i2cdata = 0x0;
+uint8_t mprdata = 0x0;
 
 void AudioCallback(AudioHandle::InputBuffer  in,
                    AudioHandle::OutputBuffer out,
@@ -102,41 +49,22 @@ int main(void)
     i2c.Init(i2c_conf);
     // now i2c points to the corresponding peripheral and can be used.
 
-    //setup autocfg reg 0
-    i2cdata = (1 << auto_cfg_ace_bit | 1 << auto_cfg_are_bit |
-               0b10 << auto_cfg_bva_bit | 0b11 << auto_cfg_retry_bit);
-    hw.PrintLine("Setting Autoconfig 0 Register: 0x%X", i2cdata);
-    i2c.WriteDataAtAddress(touch_sensor_addr, autocfg_reg_0, 1, &i2cdata, 1, -1);
-    i2cdata = 0;
-    i2c.ReadDataAtAddress(touch_sensor_addr, autocfg_reg_0, 1, &i2cdata, 1, -1);
-    hw.PrintLine("Read from Autoconfig 0 Register: 0x%X", i2cdata);
-    i2c.ReadDataAtAddress(touch_sensor_addr, autocfg_reg_0, 1, &i2cdata, 1, -1);
-    hw.PrintLine("Read from Autoconfig 0 Register: 0x%X", i2cdata);
+    hw.PrintLine("Attempting to setup MPR121 now.");
+    bool result = init_MPR121(&i2c, &hw, (uint8_t)MPR121_ADDR, true);
+    hw.PrintLine("Result: %d", result);
 
-    //setup autocfg reg 1
-    i2cdata =  (0b00 << auto_cfg_oorie_bit |
-                0b00 << auto_cfg_arfie_bit |
-                0b00 << auto_cfg_acfie_bit |
-                0b00 << auto_cfg_scts_bit);
-    hw.PrintLine("Setting Autoconfig 1 Register: 0x%X", i2cdata);
-    i2c.WriteDataAtAddress(touch_sensor_addr, autocfg_reg_1, 1, &i2cdata, 1, 500);
-    i2cdata = 0;
-    i2c.ReadDataAtAddress(touch_sensor_addr, autocfg_reg_1, 1, &i2cdata, 1, 500);
-    hw.PrintLine("Read from Autoconfig 1 Register: 0x%X", i2cdata);
-    i2c.ReadDataAtAddress(touch_sensor_addr, autocfg_reg_1, 1, &i2cdata, 1, 500);
-    hw.PrintLine("Read from Autoconfig 1 Register: 0x%X", i2cdata);
+    mprdata = 0;
+    i2c.ReadDataAtAddress(MPR121_ADDR, AUTOCFG_0, 1, &mprdata, 1, MAX_I2C_WAIT);
+    hw.PrintLine("Read from Autoconfig 0 Register: 0x%X", mprdata);
 
-    //setup electrode register
-    i2cdata =  (0b10 << electrode_cl_bit |
-                0b00 << electrode_eleprox_en_bit |
-                0b1111 << electrode_ele_en_bit);
-    hw.PrintLine("Setting Electrode Enable Register: 0x%X", i2cdata);
-    i2c.WriteDataAtAddress(touch_sensor_addr, electrode_cfg_reg, 1, &i2cdata, 1, 500);
-    i2cdata = 0;
-    i2c.ReadDataAtAddress(touch_sensor_addr, autocfg_reg_1, 1, &i2cdata, 1, 500);
-    hw.PrintLine("Read from Electrode Enable Register: 0x%X", i2cdata);
-    i2c.ReadDataAtAddress(touch_sensor_addr, autocfg_reg_1, 1, &i2cdata, 1, 500);
-    hw.PrintLine("Read from Electrode Enable Register: 0x%X", i2cdata);
+    mprdata = 0;
+    i2c.ReadDataAtAddress(MPR121_ADDR, AUTOCFG_1, 1, &mprdata, 1, MAX_I2C_WAIT);
+    hw.PrintLine("Read from Autoconfig 1 Register: 0x%X", mprdata);
+
+    mprdata = 0;
+    i2c.ReadDataAtAddress(MPR121_ADDR, ELECTRODE_CFG, 1, &mprdata, 1, MAX_I2C_WAIT);
+    hw.PrintLine("Read from Electrode Enable Register: 0x%X", mprdata);
+
 /*
     //set up ADC on pin D15 and D16 for our potentiometer
     const int adcChannels = 2;
@@ -160,12 +88,12 @@ int main(void)
    /* {
         hw.PrintLine("At top of While loop");
         System::Delay(125);
-        i2cdata = 0;
-    	hw.PrintLine("Read from I2C Result: %d", i2c.ReadDataAtAddress(touch_sensor_addr, touch_reg_lo, 1, &i2cdata, 1, 500));
-        hw.SetLed(i2cdata > 0);
-        hw.PrintLine("I2C Data: %x", i2cdata);
-	i2c.ReadDataAtAddress(touch_sensor_addr, electrode_cfg_reg, 1, &i2cdata, 1, 500);
-    	hw.PrintLine("Read from Electrode Enable Register: 0x%X", i2cdata);
+        mprdata = 0;
+    	hw.PrintLine("Read from I2C Result: %d", i2c.ReadDataAtAddress(touch_sensor_addr, touch_reg_lo, 1, &mprdata, 1, 500));
+        hw.SetLed(mprdata > 0);
+        hw.PrintLine("I2C Data: %x", mprdata);
+	i2c.ReadDataAtAddress(touch_sensor_addr, electrode_cfg_reg, 1, &mprdata, 1, 500);
+    	hw.PrintLine("Read from Electrode Enable Register: 0x%X", mprdata);
     } */
 }
 

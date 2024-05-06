@@ -2,7 +2,11 @@
 #pragma once
 
 #include "daisy_seed.h"
+#include <stdio.h>
 #include <src/per/i2c.h>
+
+using daisy::I2CHandle;
+using daisy::DaisySeed;
 
 //maximum wait before returning from I2C transaction
 #ifndef MAX_I2C_WAIT
