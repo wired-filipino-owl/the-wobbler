@@ -112,6 +112,6 @@ using daisy::DaisySeed;
 #define RELEASE_THRESHOLD 6
 #define SOFT_RESET_MAGIC_NUMBER 0x63
 
-bool init_MPR121(I2CHandle* i2c, DaisySeed* hw, uint8_t addr = MPR121_ADDR, bool autoconfig = true);
+bool init_MPR121(I2CHandle* i2c, uint8_t addr = MPR121_ADDR, bool autoconfig = true);
 uint16_t readTouch(I2CHandle* i2c, uint8_t addr = MPR121_ADDR);
-
+bool setThresholds(I2CHandle* i2c, uint8_t touch, uint8_t release, uint8_t addr = MPR121_ADDR);

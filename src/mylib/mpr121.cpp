@@ -3,9 +3,9 @@
 
 static uint8_t i2cdata = 0;
 
-bool init_MPR121(I2CHandle* i2c, DaisySeed* hw, uint8_t addr, bool autoconfig)
+bool init_MPR121(I2CHandle* i2c, uint8_t addr, bool autoconfig)
 {
-  if (i2c == nullptr || hw == nullptr)
+  if (i2c == nullptr)
     return false;
   
   //reset the MPR121
@@ -97,4 +97,28 @@ uint16_t readTouch(I2CHandle* i2c, uint8_t addr)
   i2c->ReadDataAtAddress(addr, TOUCH_STATUS_HI, 1, &reg_hi, 1, MAX_I2C_WAIT);
   
   return (!fail ? ((reg_hi & 0x0F) << 8 | reg_lo) : -1);
+}
+
+bool setThresholds(I2CHandle* i2c, uint8_t touch, uint8_t release, uint8_t addr)
+{
+  bool fail = 0;
+  //disable electrodes and go into stop mode so we can update registers
+  i2cdata = 0x0;
+  fail = (bool)i2c->WriteDataAtAddress(addr, ELECTRODE_CFG, 1, &i2cdata, 1, MAX_I2C_WAIT);
+  i2cdata = touch;
+  for (int i = 0; i < 12; i++)
+  {
+    fail = (bool)i2c->WriteDataAtAddress(addr, E0TTH + (i*2), 1, &i2cdata, 1, MAX_I2C_WAIT);
+  }
+  i2cdata = release;
+  for (int i = 0; i < 12; i++)
+  {
+    fail = (bool)i2c->WriteDataAtAddress(addr, E0RTH + (i*2), 1, &i2cdata, 1, MAX_I2C_WAIT);
+  }
+
+  //turn electrodes back on and go into run mode
+  i2cdata = (0b00 << ELECT_CL | 0b00 << ELECT_ELEPROX | 0b1111 << ELECT_ELE_EN);
+  fail = (bool)i2c->WriteDataAtAddress(addr, ELECTRODE_CFG, 1, &i2cdata, 1, MAX_I2C_WAIT);
+
+  return fail;
 }
