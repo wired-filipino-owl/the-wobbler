@@ -1,7 +1,7 @@
 
 #include "mpr121.h"
 
-bool init_MPR121(I2CHandle* i2c, DaisySeed* hw, uint8_t addr = MPR121_ADDR, bool autoconfig = true)
+bool init_MPR121(I2CHandle* i2c, DaisySeed* hw, uint8_t addr, bool autoconfig)
 {
   if (i2c == nullptr || hw == nullptr)
     return false;
@@ -9,7 +9,7 @@ bool init_MPR121(I2CHandle* i2c, DaisySeed* hw, uint8_t addr = MPR121_ADDR, bool
   //reset the MPR121
   i2cdata = SOFT_RESET_MAGIC_NUMBER;
   i2c->WriteDataAtAddress(addr, SOFT_RESET, 1, &i2cdata, 1, MAX_I2C_WAIT);
-  System::Delay(2); //wait for MPR121 to reset
+  daisy::System::Delay(2); //wait for MPR121 to reset
   
   //make sure we're in stop mode, turn off all electrodes
   i2cdata = 0x00;
@@ -61,14 +61,14 @@ bool init_MPR121(I2CHandle* i2c, DaisySeed* hw, uint8_t addr = MPR121_ADDR, bool
   
   //electrode charge/discharge timing and current
   i2cdata = (0b00 << FFI | 0b010000 << CDC); //16uA charge current
-  i2c->Write=DataAtAddress(addr, FILTER_CDC_CFG, 1, &i2cdata, 1, MAX_I2C_WAIT);
+  i2c->WriteDataAtAddress(addr, FILTER_CDC_CFG, 1, &i2cdata, 1, MAX_I2C_WAIT);
   i2cdata = (0b001 << CDT | 0b00 << SFI | 0b000 << ESI); //0.5us encode, 1ms period
-  i2c->Write=DataAtAddress(addr, FILTER_CDT_CFG, 1, &i2cdata, 1, MAX_I2C_WAIT);
+  i2c->WriteDataAtAddress(addr, FILTER_CDT_CFG, 1, &i2cdata, 1, MAX_I2C_WAIT);
   
   //setup autoconfig if it's enabled
   if (autoconfig)
   {
-    i2cdata = (0b00 << AUTOCONFIG_FFI | 0b00 << AUTOCFG_RETRY | 0b10 << AUTOCFG_BVA 
+    i2cdata = (0b00 << AUTOCFG_FFI | 0b00 << AUTOCFG_RETRY | 0b10 << AUTOCFG_BVA 
                | 1 << AUTOCFG_ARE | 1 << AUTOCFG_ACE);
     i2c->WriteDataAtAddress(addr, AUTOCFG_0, 1, &i2cdata, 1, MAX_I2C_WAIT);
     
@@ -81,12 +81,12 @@ bool init_MPR121(I2CHandle* i2c, DaisySeed* hw, uint8_t addr = MPR121_ADDR, bool
   }
   
   i2cdata = (0b00 << ELECT_CL | 0b00 << ELECT_ELEPROX | 0b1111 << ELECT_ELE_EN); //enable all electrodes, default for CL and Proximity Detection
-  i2c->Write=DataAtAddress(addr, ELECTRODE_CFG, 1, &i2cdata, 1, MAX_I2C_WAIT);
+  i2c->WriteDataAtAddress(addr, ELECTRODE_CFG, 1, &i2cdata, 1, MAX_I2C_WAIT);
   
   return true;
 }
 
-uint16_t readTouch(I2CHandle* i2c, uint8_t addr = MPR121_ADDR)
+uint16_t readTouch(I2CHandle* i2c, uint8_t addr)
 {
   uint8_t reg_lo = 0;
   uint8_t reg_hi = 0;

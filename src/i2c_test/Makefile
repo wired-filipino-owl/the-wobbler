@@ -2,7 +2,7 @@
 TARGET = i2c_test
 
 # Sources
-CPP_SOURCES = i2c_test.cpp
+CPP_SOURCES = i2c_test.cpp mpr121.cpp
 
 # Library Locations
 LIBDAISY_DIR = $(HOME)/lib/Daisy/libDaisy
