@@ -51,7 +51,7 @@ int main(void)
 
     hw.PrintLine("Attempting to setup MPR121 now.");
     bool result = init_MPR121(&i2c, &hw, (uint8_t)MPR121_ADDR, true);
-    hw.PrintLine("Result: %d", result);
+    hw.PrintLine("Result: %s", (result ? "success" : "failed!"));
 
     mprdata = 0;
     i2c.ReadDataAtAddress(MPR121_ADDR, AUTOCFG_0, 1, &mprdata, 1, MAX_I2C_WAIT);
@@ -84,16 +84,22 @@ int main(void)
 
     hw.StartAudio(AudioCallback);
 */
-    while(1);
-   /* {
+    while(1)
+   {
         hw.PrintLine("At top of While loop");
-        System::Delay(125);
+	//wait for touch
+	while(readTouch(&i2c) == 0)
+	{
+		System::Delay(64);
+	}
         mprdata = 0;
-    	hw.PrintLine("Read from I2C Result: %d", i2c.ReadDataAtAddress(touch_sensor_addr, touch_reg_lo, 1, &mprdata, 1, 500));
-        hw.SetLed(mprdata > 0);
-        hw.PrintLine("I2C Data: %x", mprdata);
-	i2c.ReadDataAtAddress(touch_sensor_addr, electrode_cfg_reg, 1, &mprdata, 1, 500);
-    	hw.PrintLine("Read from Electrode Enable Register: 0x%X", mprdata);
-    } */
+	i2c.ReadDataAtAddress(MPR121_ADDR, TOUCH_STATUS_LO, 1, &mprdata, 1, MAX_I2C_WAIT);
+    	hw.PrintLine("Read from TOUCH_REG_LO : 0x%X", mprdata);
+        mprdata = 0;
+	i2c.ReadDataAtAddress(MPR121_ADDR, TOUCH_STATUS_HI, 1, &mprdata, 1, MAX_I2C_WAIT);
+    	hw.PrintLine("Read from TOUCH_REG_HI: 0x%X", mprdata);
+   	hw.SetLed(readTouch(&i2c) > 0);  
+	System::Delay(64);
+   }
 }
 

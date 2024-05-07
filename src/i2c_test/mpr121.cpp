@@ -1,6 +1,8 @@
 
 #include "mpr121.h"
 
+static uint8_t i2cdata = 0;
+
 bool init_MPR121(I2CHandle* i2c, DaisySeed* hw, uint8_t addr, bool autoconfig)
 {
   if (i2c == nullptr || hw == nullptr)
@@ -94,5 +96,5 @@ uint16_t readTouch(I2CHandle* i2c, uint8_t addr)
   i2c->ReadDataAtAddress(addr, TOUCH_STATUS_LO, 1, &reg_lo, 1, MAX_I2C_WAIT);
   i2c->ReadDataAtAddress(addr, TOUCH_STATUS_HI, 1, &reg_hi, 1, MAX_I2C_WAIT);
   
-  return ((reg_hi & 0x0F) << 8 | reg_lo);
+  return (!fail ? ((reg_hi & 0x0F) << 8 | reg_lo) : -1);
 }
