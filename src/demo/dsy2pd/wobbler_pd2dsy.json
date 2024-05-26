@@ -1,0 +1,31 @@
+{
+    "name": "wobbler",
+    "som": "seed",
+    "parents": {
+    
+    },
+    "components": {
+	"knob1": {
+		"component": "AnalogControl",
+		"pin": 15
+	},
+	"knob2": {
+		"component": "AnalogControl",
+		"pin": 16
+	},
+	"knob3": {
+		"component": "AnalogControl",
+		"pin": 17
+	},	
+	"button1": {
+		"component": "Switch",
+		"pin": 27
+	}
+    },
+    "aliases": {
+	"Knob1": "knob1",
+	"Knob2": "knob2",
+	"Knob3": "knob3",	
+	"Button1": "button1"
+    }
+}
