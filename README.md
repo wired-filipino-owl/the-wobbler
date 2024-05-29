@@ -8,6 +8,8 @@ My senior project at Oregon Institute of Technology, CSET Department.
 ### Software build setup
 ##### Install build tools
 Follow [Daisy Wiki - Install the Toolchain](https://github.com/electro-smith/DaisyWiki/wiki/1.-Setting-Up-Your-Development-Environment#1-install-the-toolchain)
+##### (Linux) Add `udev` rule for Daisy Seed to be able to program without using `sudo`
+https://forum.electro-smith.com/t/linux-system-wont-program-daisy-seed-solved/5381
 ##### Get libraries
 Clone https://github.com/electro-smith/DaisySP/ and https://github.com/electro-smith/libDaisy/ into `$HOME/lib/Daisy/`.
 I suggest using `git checkout` to get the versions that match the Daisy Examples repo, otherwise the code might not compile due to version mismatch.
