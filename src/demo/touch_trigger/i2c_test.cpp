@@ -4,12 +4,14 @@
 #include <cstdio>
 #include "mpr121.h"
 
+#define DEBUG_PRINT false
+
 // Use the daisy namespace to prevent having to type
 // daisy:: before all libdaisy functions
 using namespace daisy;
 using namespace daisysp;
 
-DaisySeed hw;
+static DaisySeed hw;
 
 Oscillator osc;
 WhiteNoise noise;
@@ -22,8 +24,9 @@ void AudioCallback(AudioHandle::InterleavingInputBuffer  in,
                    AudioHandle::InterleavingOutputBuffer out,
                    size_t                                size)
 {
-    float osc_out, noise_out, snr_env_out, kck_env_out, sig;
+    float osc_out, noise_out, snr_env_out, kck_env_out, sig, vol;
 
+    vol = hw.adc.GetFloat(0);
     //If you press the kick button...
     if(touch_lo)
     {
@@ -59,6 +62,7 @@ void AudioCallback(AudioHandle::InterleavingInputBuffer  in,
 
         //Mix the two signals at half volume
         sig = .5 * noise_out + .5 * osc_out;
+        sig *= vol;
 
         //Set the left and right outputs to the mixed signals
         out[i]     = sig;
@@ -73,9 +77,17 @@ int main(void)
     // components before initialization.
     hw.Configure();
     hw.Init();
-    hw.StartLog(false);
+    hw.StartLog(DEBUG_PRINT);
     hw.PrintLine("Hello from Daisy Seed!");
     hw.SetAudioBlockSize(4);
+
+    //set up ADC on pin D16
+    const int adcChannels = 1;
+    AdcChannelConfig adcConfig[adcChannels];
+    adcConfig[0].InitSingle(hw.GetPin(16));
+    hw.adc.Init(adcConfig, adcChannels);
+    hw.adc.Start();
+
     float samplerate = hw.AudioSampleRate();
     // setup the configuration
     I2CHandle::Config i2c_conf;
@@ -89,23 +101,34 @@ int main(void)
     i2c.Init(i2c_conf);
     // now i2c points to the corresponding peripheral and can be used.
 
-    uint8_t mprdata = 0;
     hw.PrintLine("Attempting to setup MPR121 now.");
     bool result = init_MPR121(&i2c, MPR121_ADDR, false);
     hw.PrintLine("Result: %s", (result ? "success" : "failed!"));
 
+#if DEBUG_PRINT == true
+    uint8_t mprdata = 0;
+    System::Delay(64);
+
     mprdata = 0;
     i2c.ReadDataAtAddress(MPR121_ADDR, AUTOCFG_0, 1, &mprdata, 1, MAX_I2C_WAIT);
-    hw.PrintLine("Read from Autoconfig 0 Register: 0x%X", mprdata);
+    hw.Print("Autoconfig 0 Reg: ");
+    hw.Print("%#X\r\n", mprdata);
+
+    System::Delay(64);
 
     mprdata = 0;
     i2c.ReadDataAtAddress(MPR121_ADDR, AUTOCFG_1, 1, &mprdata, 1, MAX_I2C_WAIT);
-    hw.PrintLine("Read from Autoconfig 1 Register: 0x%X", mprdata);
+    hw.Print("Autoconfig 1 Reg: ");
+    hw.Print("%#X\r\n", mprdata);
+
+    System::Delay(64);
 
     mprdata = 0;
     i2c.ReadDataAtAddress(MPR121_ADDR, ELECTRODE_CFG, 1, &mprdata, 1, MAX_I2C_WAIT);
-    hw.PrintLine("Read from Electrode Enable Register: 0x%X", mprdata);
+    hw.Print("Read from Electrode Enable Reg: ");
+    hw.Print("%#X\r\n", mprdata);
 
+#endif
     //Initialize oscillator for kickdrum
     osc.Init(samplerate);
     osc.SetWaveform(Oscillator::WAVE_TRI);
