@@ -28,50 +28,25 @@ void AudioCallback(AudioHandle::InterleavingInputBuffer  in,
                    size_t                                size)
 {
     vol = hw.adc.GetFloat(0);
+    //touch_lo
+    if (touch_lo & 0x02)
+        f5_env.Trigger();
+    if (touch_lo & 0x04)
+        e5_env.Trigger();
+    if (touch_lo & 0x08)
+        d5_env.Trigger();
+    if (touch_lo & 0x10)
+        c5_env.Trigger();
+    if (touch_lo & 0x80)
+        g5_env.Trigger();
 
-    switch(touch_lo)
-    {
-        case 0x01:
-            //not yet
-            break;
-        case 0x02:
-            f5_env.Trigger();
-            break;
-        case 0x04:
-            e5_env.Trigger();
-            break;
-        case 0x08:
-            d5_env.Trigger();
-            break;
-        case 0x10:
-            c5_env.Trigger();
-            break;
-        case 0x20:
-            //not yet
-            break;
-        case 0x40:
-            //not yet
-            break;
-        case 0x80:
-            g5_env.Trigger();
-            break;
-    }
-
-    switch(touch_hi)
-    {
-        case 0x01:
-            a5_env.Trigger();
-            break;
-        case 0x02:
-            b5_env.Trigger();
-            break;
-        case 0x04:
-            c6_env.Trigger();
-            break;
-        case 0x08:
-            //not yet
-            break;
-    }
+    //touch_hi
+    if (touch_hi & 0x01)
+        a5_env.Trigger();
+    if (touch_hi & 0x02)
+        b5_env.Trigger();
+    if (touch_hi & 0x04)
+        c6_env.Trigger();
 
     //Prepare the audio block
     for(size_t i = 0; i < size; i += 2)
