@@ -16,37 +16,63 @@ using namespace daisysp;
 static DaisySeed hw;
 
 Oscillator c5, d5, e5, f5, g5, a5, b5, c6;
+Oscillator lfo;
 AdEnv c5_env, d5_env, e5_env, f5_env, g5_env, a5_env, b5_env, c6_env;
 
 uint8_t touch_lo, touch_hi = 0;
 
 float sig, vol;
 float c5_out, d5_out, e5_out, f5_out, g5_out, a5_out, b5_out, c6_out;
+float lfo_out;
+
+float hall_val = 0.0;
 
 void AudioCallback(AudioHandle::InterleavingInputBuffer  in,
                    AudioHandle::InterleavingOutputBuffer out,
                    size_t                                size)
 {
-    vol = hw.adc.GetFloat(0);
-    //touch_lo
-    if (touch_lo & 0x02)
-        f5_env.Trigger();
-    if (touch_lo & 0x04)
-        e5_env.Trigger();
-    if (touch_lo & 0x08)
-        d5_env.Trigger();
-    if (touch_lo & 0x10)
-        c5_env.Trigger();
-    if (touch_lo & 0x80)
-        g5_env.Trigger();
+    //hw.Print(".\n");
+    vol = hw.adc.GetFloat(1);
+    //magic numbers are from the "at rest" value of the Hall sensor
+    //and the intended midpoint frequency for the LFO
+    hall_val = hw.adc.GetFloat(0);
+    //hall_val = hall_val - 0.3;
+    lfo.SetFreq(hall_val * 2.357 * 1.2 * 7.0);
+    //lfo.SetFreq(hall_val * hall_val  * 7.0);
 
-    //touch_hi
-    if (touch_hi & 0x01)
+    if (touch_lo & 0x02)
+    {
+        f5_env.Trigger();
+    }
+    else if (touch_lo & 0x04)
+    {
+        e5_env.Trigger();
+    }
+    else if (touch_lo & 0x08)
+    {
+        d5_env.Trigger();
+    }
+    else if (touch_lo & 0x10)
+    {
+        c5_env.Trigger();
+    }
+    else if (touch_lo & 0x80)
+    {
+        g5_env.Trigger();
+    }
+    else if (touch_hi & 0x01)
+    {
         a5_env.Trigger();
-    if (touch_hi & 0x02)
+    }
+    else if (touch_hi & 0x02)
+    {
         b5_env.Trigger();
-    if (touch_hi & 0x04)
+    }
+    else if (touch_hi & 0x04)
+    {
         c6_env.Trigger();
+    }
+
 
     //Prepare the audio block
     for(size_t i = 0; i < size; i += 2)
@@ -68,9 +94,12 @@ void AudioCallback(AudioHandle::InterleavingInputBuffer  in,
         c6.SetAmp(c6_env.Process());
         c6_out = c6.Process();
 
+        lfo_out = lfo.Process();
+
         sig = c5_out + d5_out + e5_out + f5_out 
               + g5_out + a5_out + b5_out + c6_out;
 
+        sig *= lfo_out;
         sig *= vol;
         //Set the left and right outputs to the mixed signals
         out[i]     = sig;
@@ -90,11 +119,31 @@ int main(void)
     hw.SetAudioBlockSize(4);
 
     //set up ADC on pin D16
-    const int adcChannels = 1;
+    const int adcChannels = 2;
     AdcChannelConfig adcConfig[adcChannels];
-    adcConfig[0].InitSingle(hw.GetPin(16));
+    adcConfig[0].InitSingle(hw.GetPin(15));
+    adcConfig[1].InitSingle(hw.GetPin(16));
     hw.adc.Init(adcConfig, adcChannels);
+    hw.PrintLine("init ADC");
     hw.adc.Start();
+
+    hw.PrintLine("started ADC");
+    //set up mux (for this program, just set it to the last input)
+    GPIO mux0, mux1, mux2, mux3;
+    mux0.Init(seed::D17, GPIO::Mode::OUTPUT);
+    mux1.Init(seed::D18, GPIO::Mode::OUTPUT);
+    mux2.Init(seed::D19, GPIO::Mode::OUTPUT);
+    mux3.Init(seed::D20, GPIO::Mode::OUTPUT);
+    hw.PrintLine("initialized mux pins");
+
+    mux0.Write(1);
+    mux1.Write(1);
+    mux2.Write(1);
+    mux3.Write(1);
+    hw.PrintLine("pulled mux pins high");
+
+    //hall_val = hw.adc.GetFloat(1);
+    //hw.PrintLine("ADC value from Hall sensor: %f", hall_val);
 
     float samplerate = hw.AudioSampleRate();
     // setup the configuration
@@ -178,6 +227,15 @@ int main(void)
     c6.SetAmp(1); 
     c6.SetFreq(1046.5);
 
+    hw.PrintLine("initialized scale oscillators");
+
+    lfo.Init(samplerate);
+    lfo.SetWaveform(Oscillator::WAVE_SIN);
+    lfo.SetAmp(1);
+    lfo.SetFreq(10);
+
+    hw.PrintLine("initialized lfo");
+
     //initialize envelopes
     c5_env.Init(samplerate);
     c5_env.SetTime(ADENV_SEG_ATTACK, ENV_ATK_TIME);
@@ -231,6 +289,7 @@ int main(void)
     System::Delay(2000);
     //Start calling the callback function
     hw.StartAudio(AudioCallback);
+    hw.PrintLine("started Audio Callback");
 
     // Loop forever
     while(1)
@@ -248,5 +307,8 @@ int main(void)
 	i2c.ReadDataAtAddress(MPR121_ADDR, TOUCH_STATUS_HI, 1, &touch_hi, 1, MAX_I2C_WAIT);
     	hw.PrintLine("Read from TOUCH_REG_HI: 0x%X", touch_hi);
 	System::Delay(64);
+        //hall_val = hw.adc.GetFloat(0);
+        hw.PrintLine("ADC value from Hall sensor: %d",  hw.adc.Get(0));
+        hw.PrintLine("Simulated LFO frequency: %d", int(hall_val * 2.357 * 8));
     }
 }
